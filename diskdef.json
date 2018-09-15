@@ -1,0 +1,38 @@
+[
+/// disk def 1
+{
+	"description":"the first disk",
+	/*
+	"disktype":"sata|ide|nvme|ssd|scsi",
+	"rotational":"no|yes",
+	*/
+	"reportedsize":"auto|number(G|T|M)",
+	"matchsize":"no|yes",
+	//if mapfilemode is partition, all files are treated as partitions. If not, the files must have all required def 
+	"definition":{"type":"partition|disk",
+				"partitiontable":{
+						"type":"gpt|mbr|bsd|amiga",
+						[
+						{"idx":"nr|auto", "path":"/var/images/p01.img","start":"","end":"", "type":"primary", "label":"" , "uuid":"", "flags":""},
+						{"idx":"nr|auto", "start":"","end":"", "type":"space"},
+						{"idx":"nr|auto", "path":"/var/images/p02.img","space":"","end":"", "type":"extended"}
+			
+						]
+				}	
+	},
+},
+{
+	"description":"second disk",
+	/*
+	"disktype":"sata|ide|nvme|ssd|scsi",
+	"rotational":"no|yes",
+	*/
+	"reportedsize":"auto|number(G|T|M)",
+	"matchsize":"no|yes",
+	//if mapfilemode is partition, all files are treated as partitions. If not, the files must have all required def 
+	"definition":{ "type":"disk", "path":"/path/to/file/c.vmdk", "format":"auto|vdi|vhdx|vmdk|qemu|other|?"
+				
+					
+	},
+}
+]
