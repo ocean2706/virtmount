@@ -21,6 +21,9 @@
 #include <grub/misc.h>
 #include <grub/file.h>
 #include <grub/disk.h>
+#include <grub/vfile.h>
+#include <grub/vdisk.h>
+
 #include <grub/mm.h>
 #include <grub/extcmd.h>
 #include <grub/i18n.h>
