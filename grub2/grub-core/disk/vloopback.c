@@ -20,10 +20,9 @@
 #include <grub/dl.h>
 #include <grub/misc.h>
 #include <grub/file.h>
-#include <grub/disk.h>
 #include <grub/vfile.h>
+#include <grub/disk.h>
 #include <grub/vdisk.h>
-
 #include <grub/mm.h>
 #include <grub/extcmd.h>
 #include <grub/i18n.h>
@@ -33,7 +32,7 @@ GRUB_MOD_LICENSE ("GPLv3+");
 struct grub_vloopback
 {
   char *devname;
-  grub_file_t file;
+  grub_vfile_t file;
   struct grub_vloopback *next;
   unsigned long id;
 };
@@ -81,7 +80,7 @@ static grub_err_t
 grub_cmd_vloopback (grub_extcmd_context_t ctxt, int argc, char **args)
 {
   struct grub_arg_list *state = ctxt->state;
-  grub_file_t file;
+  grub_vfile_t file;
   struct grub_vloopback *newdev;
   grub_err_t ret;
 
@@ -95,7 +94,7 @@ grub_cmd_vloopback (grub_extcmd_context_t ctxt, int argc, char **args)
   if (argc < 2)
     return grub_error (GRUB_ERR_BAD_ARGUMENT, N_("filename expected"));
 
-  file = grub_file_open (args[1]);
+  file = grub_vfile_open (args[1]);
   if (! file)
     return grub_errno;
 
@@ -106,7 +105,7 @@ grub_cmd_vloopback (grub_extcmd_context_t ctxt, int argc, char **args)
 
   if (newdev)
     {
-      grub_file_close (newdev->file);
+      grub_vfile_close (newdev->file);
       newdev->file = file;
 
       return 0;
@@ -135,13 +134,13 @@ grub_cmd_vloopback (grub_extcmd_context_t ctxt, int argc, char **args)
 
 fail:
   ret = grub_errno;
-  grub_file_close (file);
+  grub_vfile_close (file);
   return ret;
 }
 
 
 static int
-grub_vloopback_iterate (grub_disk_dev_iterate_hook_t hook, void *hook_data,
+grub_vloopback_iterate (grub_vdisk_dev_iterate_hook_t hook, void *hook_data,
 		       grub_disk_pull_t pull)
 {
   struct grub_vloopback *d;
@@ -156,7 +155,7 @@ grub_vloopback_iterate (grub_disk_dev_iterate_hook_t hook, void *hook_data,
 }
 
 static grub_err_t
-grub_vloopback_open (const char *name, grub_disk_t disk)
+grub_vloopback_open (const char *name, grub_vdisk_t disk)
 {
   struct grub_vloopback *dev;
 
@@ -168,32 +167,32 @@ grub_vloopback_open (const char *name, grub_disk_t disk)
     return grub_error (GRUB_ERR_UNKNOWN_DEVICE, "can't open device");
 
   /* Use the filesize for the disk size, round up to a complete sector.  */
-  if (dev->file->size != GRUB_FILE_SIZE_UNKNOWN)
-    disk->total_sectors = ((dev->file->size + GRUB_DISK_SECTOR_SIZE - 1)
+  if (dev->file->file->size != GRUB_FILE_SIZE_UNKNOWN)
+    disk->grub_disk->total_sectors = ((dev->file->file->size + GRUB_DISK_SECTOR_SIZE - 1)
 			   / GRUB_DISK_SECTOR_SIZE);
   else
-    disk->total_sectors = GRUB_DISK_SIZE_UNKNOWN;
+    disk->grub_disk->total_sectors = GRUB_DISK_SIZE_UNKNOWN;
   /* Avoid reading more than 512M.  */
-  disk->max_agglomerate = 1 << (29 - GRUB_DISK_SECTOR_BITS
+  disk->grub_disk->max_agglomerate = 1 << (29 - GRUB_DISK_SECTOR_BITS
 				- GRUB_DISK_CACHE_BITS);
 
-  disk->id = dev->id;
+  disk->grub_disk->id = dev->id;
 
-  disk->data = dev;
+  disk->grub_disk->data = dev;
 
   return 0;
 }
 
 static grub_err_t
-grub_vloopback_read (grub_disk_t disk, grub_disk_addr_t sector,
+grub_vloopback_read (grub_vdisk_t disk, grub_disk_addr_t sector,
 		    grub_size_t size, char *buf)
 {
-  grub_file_t file = ((struct grub_vloopback *) disk->data)->file;
+  grub_vfile_t file = (grub_vfile_t)( ((struct grub_vloopback *) disk->grub_disk->data)->file);
   grub_off_t pos;
 
-  grub_file_seek (file, sector << GRUB_DISK_SECTOR_BITS);
+  grub_vfile_seek (file, sector << GRUB_DISK_SECTOR_BITS);
 
-  grub_file_read (file, buf, size << GRUB_DISK_SECTOR_BITS);
+  grub_vfile_read (file, buf, size << GRUB_DISK_SECTOR_BITS);
   if (grub_errno)
     return grub_errno;
 
@@ -201,9 +200,9 @@ grub_vloopback_read (grub_disk_t disk, grub_disk_addr_t sector,
      of files that are not a multiple of GRUB_DISK_SECTOR_SIZE, fill
      the rest with zeros.  */
   pos = (sector + size) << GRUB_DISK_SECTOR_BITS;
-  if (pos > file->size)
+  if (pos > file->file->size)
     {
-      grub_size_t amount = pos - file->size;
+      grub_size_t amount = pos - file->file->size;
       grub_memset (buf + (size << GRUB_DISK_SECTOR_BITS) - amount, 0, amount);
     }
 
@@ -211,7 +210,7 @@ grub_vloopback_read (grub_disk_t disk, grub_disk_addr_t sector,
 }
 
 static grub_err_t
-grub_vloopback_write (grub_disk_t disk __attribute ((unused)),
+grub_vloopback_write (grub_vdisk_t disk __attribute ((unused)),
 		     grub_disk_addr_t sector __attribute ((unused)),
 		     grub_size_t size __attribute ((unused)),
 		     const char *buf __attribute ((unused)))
